@@ -206,6 +206,29 @@ pub struct LoreStorageUploadItemCompleteEventData {
     pub error: LoreErrorDetail,
 }
 
+/// Terminal per-item event for `lore_storage_mark_durable`. `already_durable` is 1 when nothing
+/// was written: the item's local entry, and every entry below it the walk visited, already
+/// carried `PayloadStoredDurable`. A durable list whose payload is not held here is not walked,
+/// so the entries below it are not visited, and `already_durable` does not vouch for them.
+/// `marked` counts the puts the item made: its own entry plus, for a fragmented item, the leaves
+/// and nested lists below it. An entry referenced more than once can be counted once per
+/// reference.
+#[repr(C)]
+#[derive(Clone, PartialEq, Serialize, bitcode::Encode, bitcode::Decode)]
+#[serde(rename_all = "camelCase")]
+pub struct LoreStorageMarkDurableItemCompleteEventData {
+    /// Correlation id of the item.
+    pub id: u64,
+    /// The content address of the item.
+    pub address: Address,
+    /// 1 when every entry visited was already durable and nothing was written.
+    pub already_durable: u8,
+    /// Number of puts that marked a local entry durable.
+    pub marked: u64,
+    /// The outcome for the item.
+    pub error: LoreErrorDetail,
+}
+
 /// Terminal per-item event for `mutable_load`. On success `error.error_code == 0` and `value`
 /// is the loaded value hash (`Hash::default()` when the key holds a null/removed value); on
 /// miss `error` carries the miss the answering backend raised — `AddressNotFound` from a local

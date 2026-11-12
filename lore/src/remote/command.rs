@@ -173,4 +173,5 @@ pub enum LoreCommand {
     RepositoryInstanceDelete(crate::repository::LoreRepositoryInstanceDeleteArgs),
     RepositoryInstanceMove(crate::repository::LoreRepositoryInstanceMoveArgs),
     RepositoryInstanceClone(crate::repository::LoreRepositoryInstanceCloneArgs),
+    StorageMarkDurable(crate::storage::mark_durable::LoreStorageMarkDurableArgs),
 }

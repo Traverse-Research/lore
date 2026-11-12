@@ -27,7 +27,12 @@ bitflags! {
         const PayloadLocalCachePriority = 0b10000000000000000;
         /// Payload represents a revision state
         const PayloadRevisionState = 0b100000000000000000;
-        /// Payload is stored upstream (exists)
+        /// The payload is held by a store that keeps it durably: the store itself when it is a
+        /// durable backend, such as a bucket, and otherwise a store outside it, such as a remote.
+        /// In a client's local store, the local copy can then be evicted, and a write, upload or
+        /// push treats the entry as already sent. The flag does not record which remote holds the
+        /// payload: a store used against several remotes under one partition trusts it for all of
+        /// them.
         const PayloadStoredDurable = 0b1000000000000000000;
         /// Payload is stored locally
         const PayloadStoredLocal = 0b100000000000000000000;

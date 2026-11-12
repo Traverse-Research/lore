@@ -7470,6 +7470,50 @@ pub extern "C" fn lore_storage_upload_async(
     run_asynchronously(globals, args, callback, dispatch_command);
 }
 
+pub type LoreStorageMarkDurableArgs = crate::storage::mark_durable::LoreStorageMarkDurableArgs;
+
+/// Mark locally-stored content durable without uploading it.
+///
+/// The caller asserts the content is held durably outside this store. The local entry gains
+/// `PayloadStoredDurable`, which makes its payload evictable and makes writes, `upload` and
+/// push skip it. No remote is consulted, so the handle needs none. The flag is per partition
+/// and names no remote: if this store is also used with a remote under the same partition,
+/// mark only content that remote holds too, or that remote never receives it. Once eviction
+/// takes a marked payload, a handle without a remote fails to read it with `ADDRESS_NOT_FOUND`;
+/// read it through a handle whose remote holds it.
+///
+/// Whole-call pre-dispatch fails with `INVALID_ARGUMENTS` when `globals.remote=1` on the handle
+/// or the call. Per-item:
+/// `partition == 0` → `INVALID_ARGUMENTS`; zero hash succeeds with `already_durable=1`; no full
+/// local match, or no local payload → `ADDRESS_NOT_FOUND`, creating nothing. A fragmented
+/// item's leaves and nested lists are marked before the item itself, including below a list
+/// already durable, and one missing locally fails the item with the item left unmarked. A
+/// durable list whose payload is not held here is skipped without visiting the entries below
+/// it. `already_durable=1` when nothing visited needed marking, which says nothing of entries
+/// below a skipped list; `marked` counts the puts made, and an entry referenced more than once
+/// can be counted once per reference.
+///
+/// Each item emits `LORE_EVENT_STORAGE_MARK_DURABLE_ITEM_COMPLETE`. The return value, and the
+/// `status` of the final `LORE_EVENT_COMPLETE`, carry the most severe item failure.
+#[unsafe(no_mangle)]
+pub extern "C" fn lore_storage_mark_durable(
+    globals: &LoreGlobalArgs,
+    args: &LoreStorageMarkDurableArgs,
+    callback: LoreEventCallbackConfig,
+) -> i32 {
+    run_synchronously(globals, args, callback, run_command)
+}
+
+/// Mark locally-stored content durable (async variant).
+#[unsafe(no_mangle)]
+pub extern "C" fn lore_storage_mark_durable_async(
+    globals: &LoreGlobalArgs,
+    args: &LoreStorageMarkDurableArgs,
+    callback: LoreEventCallbackConfig,
+) {
+    run_asynchronously(globals, args, callback, dispatch_command);
+}
+
 pub type LoreServiceStartArgs = crate::service::LoreServiceStartArgs;
 
 /// Start the Lore background service, unless one is already running.

@@ -65,6 +65,7 @@ pub mod handle;
 pub(crate) mod lent;
 #[cfg(feature = "test-util")]
 pub mod lent;
+pub mod mark_durable;
 pub mod mutable_compare_and_swap;
 pub mod mutable_list;
 pub mod mutable_load;

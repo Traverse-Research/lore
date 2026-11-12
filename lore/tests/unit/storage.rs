@@ -11,6 +11,7 @@ mod handle;
 mod held;
 mod lent;
 mod lock_interleave;
+mod mark_durable;
 mod open;
 mod store;
 

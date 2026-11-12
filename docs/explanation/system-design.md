@@ -592,7 +592,8 @@ revision involved. An application opens a store handle and operates on content d
   access; nothing about revisions or working trees is required to obtain one.
 - *Content operations.* Through the handle, an application writes and reads content-addressed
   fragments, copies a fragment from one partition to another, uploads not-yet-durable local
-  content to the remote, and obliterates content.
+  content to the remote, marks as durable local content that the caller holds elsewhere, and
+  obliterates content.
 - *File ingest and extract.* The same handle reads a file directly into content-addressed
   fragments - chunking and hashing it through the storage subsystem's own machinery (§8) - and
   writes a stored payload straight back to a filesystem path, without the caller assembling bytes

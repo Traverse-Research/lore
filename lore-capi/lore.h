@@ -3569,6 +3569,26 @@ typedef struct lore_repository_instance_clone_complete_event_data_t {
   uint64_t copied_file_count;
 } lore_repository_instance_clone_complete_event_data_t;
 
+// Terminal per-item event for `lore_storage_mark_durable`. `already_durable` is 1 when nothing
+// was written: the item's local entry, and every entry below it the walk visited, already
+// carried `PayloadStoredDurable`. A durable list whose payload is not held here is not walked,
+// so the entries below it are not visited, and `already_durable` does not vouch for them.
+// `marked` counts the puts the item made: its own entry plus, for a fragmented item, the leaves
+// and nested lists below it. An entry referenced more than once can be counted once per
+// reference.
+typedef struct lore_storage_mark_durable_item_complete_event_data_t {
+  // Correlation id of the item.
+  uint64_t id;
+  // The content address of the item.
+  struct lore_address_t address;
+  // 1 when every entry visited was already durable and nothing was written.
+  uint8_t already_durable;
+  // Number of puts that marked a local entry durable.
+  uint64_t marked;
+  // The outcome for the item.
+  struct lore_error_detail_t error;
+} lore_storage_mark_durable_item_complete_event_data_t;
+
 // An event delivered to a callback. Each variant names a kind of event and
 // carries the data for that event.
 enum lore_event_id_t {
@@ -4066,6 +4086,8 @@ enum lore_event_id_t {
   LORE_EVENT_REPOSITORY_INSTANCE_CLONE_PROGRESS,
   // The completion of an instance clone operation.
   LORE_EVENT_REPOSITORY_INSTANCE_CLONE_COMPLETE,
+  // The completion of a mark-durable item.
+  LORE_EVENT_STORAGE_MARK_DURABLE_ITEM_COMPLETE,
 };
 typedef uint32_t lore_event_tag_t;
 
@@ -4318,6 +4340,7 @@ typedef struct lore_event_t {
     struct lore_repository_instance_clone_begin_event_data_t repository_instance_clone_begin;
     struct lore_repository_instance_clone_progress_event_data_t repository_instance_clone_progress;
     struct lore_repository_instance_clone_complete_event_data_t repository_instance_clone_complete;
+    struct lore_storage_mark_durable_item_complete_event_data_t storage_mark_durable_item_complete;
   };
 } lore_event_t;
 
@@ -6146,6 +6169,34 @@ typedef struct lore_storage_upload_args_t {
   // Addresses to push to remote; each runs independently and emits its own `UPLOAD_ITEM_COMPLETE`
   struct lore_storage_upload_item_array_t items;
 } lore_storage_upload_args_t;
+
+// One mark-durable item — the `(partition, address)` of locally-stored content to mark durable.
+typedef struct lore_storage_mark_durable_item_t {
+  // Caller-chosen id echoed back in `LORE_EVENT_STORAGE_MARK_DURABLE_ITEM_COMPLETE`
+  uint64_t id;
+  // Partition of the local content; the zero partition rejects with `INVALID_ARGUMENTS`
+  struct lore_partition_t partition;
+  // Local content address to mark; a zero hash is no-op success with `already_durable=1`
+  struct lore_address_t address;
+} lore_storage_mark_durable_item_t;
+
+// A contiguous array of elements described by a pointer and a count.
+// Holds zero or more values of the element type laid out one after another.
+typedef struct lore_storage_mark_durable_item_array_t {
+  // Pointer to the first element.
+  const struct lore_storage_mark_durable_item_t *ptr;
+  // Number of elements in the array.
+  uintptr_t count;
+} lore_storage_mark_durable_item_array_t;
+
+// Arguments for `lore_storage_mark_durable`.
+typedef struct lore_storage_mark_durable_args_t {
+  // Open storage handle; needs no remote
+  struct lore_store_t handle;
+  // Addresses to mark; each runs independently and emits its own
+  // `LORE_EVENT_STORAGE_MARK_DURABLE_ITEM_COMPLETE`
+  struct lore_storage_mark_durable_item_array_t items;
+} lore_storage_mark_durable_args_t;
 
 // Arguments for starting the Lore service process (no parameters).
 typedef struct lore_service_start_args_t {
@@ -12468,6 +12519,38 @@ int32_t lore_storage_upload(const struct lore_global_args_t *globals,
 void lore_storage_upload_async(const struct lore_global_args_t *globals,
                                const struct lore_storage_upload_args_t *args,
                                struct lore_event_callback_config_t callback);
+
+// Mark locally-stored content durable without uploading it.
+//
+// The caller asserts the content is held durably outside this store. The local entry gains
+// `PayloadStoredDurable`, which makes its payload evictable and makes writes, `upload` and
+// push skip it. No remote is consulted, so the handle needs none. The flag is per partition
+// and names no remote: if this store is also used with a remote under the same partition,
+// mark only content that remote holds too, or that remote never receives it. Once eviction
+// takes a marked payload, a handle without a remote fails to read it with `ADDRESS_NOT_FOUND`;
+// read it through a handle whose remote holds it.
+//
+// Whole-call pre-dispatch fails with `INVALID_ARGUMENTS` when `globals.remote=1` on the handle
+// or the call. Per-item:
+// `partition == 0` → `INVALID_ARGUMENTS`; zero hash succeeds with `already_durable=1`; no full
+// local match, or no local payload → `ADDRESS_NOT_FOUND`, creating nothing. A fragmented
+// item's leaves and nested lists are marked before the item itself, including below a list
+// already durable, and one missing locally fails the item with the item left unmarked. A
+// durable list whose payload is not held here is skipped without visiting the entries below
+// it. `already_durable=1` when nothing visited needed marking, which says nothing of entries
+// below a skipped list; `marked` counts the puts made, and an entry referenced more than once
+// can be counted once per reference.
+//
+// Each item emits `LORE_EVENT_STORAGE_MARK_DURABLE_ITEM_COMPLETE`. The return value, and the
+// `status` of the final `LORE_EVENT_COMPLETE`, carry the most severe item failure.
+int32_t lore_storage_mark_durable(const struct lore_global_args_t *globals,
+                                  const struct lore_storage_mark_durable_args_t *args,
+                                  struct lore_event_callback_config_t callback);
+
+// Mark locally-stored content durable (async variant).
+void lore_storage_mark_durable_async(const struct lore_global_args_t *globals,
+                                     const struct lore_storage_mark_durable_args_t *args,
+                                     struct lore_event_callback_config_t callback);
 
 // Start the Lore background service, unless one is already running.
 //

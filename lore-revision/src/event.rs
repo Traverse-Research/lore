@@ -242,6 +242,7 @@ use crate::store::event::LoreStorageGetFragmentEventData;
 use crate::store::event::LoreStorageGetHeaderEventData;
 use crate::store::event::LoreStorageGetItemCompleteEventData;
 use crate::store::event::LoreStorageGetMetadataItemCompleteEventData;
+use crate::store::event::LoreStorageMarkDurableItemCompleteEventData;
 use crate::store::event::LoreStorageMutableCompareAndSwapItemCompleteEventData;
 use crate::store::event::LoreStorageMutableListEntryEventData;
 use crate::store::event::LoreStorageMutableListItemCompleteEventData;
@@ -1346,6 +1347,8 @@ pub enum LoreEvent {
     RepositoryInstanceCloneProgress(LoreRepositoryInstanceCloneProgressEventData),
     /// The completion of an instance clone operation.
     RepositoryInstanceCloneComplete(LoreRepositoryInstanceCloneCompleteEventData),
+    /// The completion of a mark-durable item.
+    StorageMarkDurableItemComplete(LoreStorageMarkDurableItemCompleteEventData),
 }
 
 /// Encodes as the event it refers to, so that a sender can encode an event it only borrows.

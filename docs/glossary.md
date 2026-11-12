@@ -153,7 +153,7 @@ Compare to: revision.
 
 ### Compaction
 
-The background process that keeps the local store under its maximum size by removing the least recently used content and rewriting its packfiles. Like eviction, it removes only content the remote also holds.
+The background process that keeps the local store under its maximum size by removing the least recently used content and rewriting its packfiles. Like eviction, it removes only durable content.
 
 Also see: eviction, garbage collection.
 
@@ -237,11 +237,17 @@ Compare to: stage.
 
 Also see: scan.
 
+### Durable
+
+Held by a store that keeps content durably: a backend such as a bucket, or, for a client's local store, a store outside it, so the local copy can be dropped and fetched again. A local entry records it with a flag that names no remote: under one partition, content made durable on one remote counts as durable for every remote the store is used with.
+
+Also see: eviction, partition.
+
 ## E
 
 ### Eviction
 
-The removal of the least recently used content from the local store to keep it under its capacity. Lore evicts only content the remote also holds, and fetches it again when needed.
+The removal of the least recently used content from the local store to keep it under its capacity. Lore evicts only durable content, and fetches it again when needed.
 
 Also see: compaction, lazy fetch.
 
